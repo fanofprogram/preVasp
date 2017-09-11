@@ -4,6 +4,7 @@
 __author__ = 'skyeagle'
 
 import re
+from collections import deque
 
 
 class CifFile(object):
@@ -37,14 +38,39 @@ class CifBlock(object):
     @classmethod
     def _process_string(cls, string):
         # 移除cif中的评论语句，用空白替代,由于其中的\n也被替代，所以相当于删除此行
-        #正则表达式的意思是：非显示字符后面（回车等）或一行开头为#，
-        #后面为“\r\n”之外的任何单个字符，匹配多次，直到这一行的结尾
+        # 正则表达式的意思是：非显示字符后面（回车等）或一行开头为#，
+        # 后面为“\r\n”之外的任何单个字符，匹配多次，直到这一行的结尾
         string = re.sub("(\s|^)#.*$", "", string, flags=re.MULTILINE)
-        #删除非ａｓｃＩＩ字符
-        string="".join(i for i in string if ord(i)<128)
-        #删除空白行(只有个回车?)
+        # 删除非ａｓｃＩＩ字符
+        string = "".join(i for i in string if ord(i) < 128)
+        # 删除空白行(只有个回车?)
         string = re.sub("^\s*\n", "", string, flags=re.MULTILINE)
 
-        print(string.splitlines())
+        q = deque()
+        multiline = False
+        ml = []
 
-CifFile.from_file("ZnO.cif")
+        p = re.compile(r'''([^'"\s)][\S]*)|'(.*?)'(?!\S)|"(.*?)"(?!\S)''')
+
+        for l in string.splitlines():
+            print(l)
+            if multiline:
+                if l.startswith(";"):
+                    multiline = False
+                    q.append(('', '', ''.join(ml)))
+                    ml = []
+                    l = l[1:].strip()
+                else:
+                    ml.append(l)
+                    continue
+            if l.startswith(";"):
+                multiline = True
+                ml.append(l[1:].strip())
+            else:
+                for s in p.findall(l):
+                    print(s)
+                    q.append(s)
+
+
+
+CifFile.from_file("Bi2Se3.cif")
